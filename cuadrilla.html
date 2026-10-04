@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Cuadrilla - Sistema de Bacheo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #0d1117; color: #fff; font-family: sans-serif; }
+        .card-main { background-color: #161b22; border: 1px solid #30363d; border-radius: 12px; }
+        .form-label { color: #e6edf3 !important; font-weight: 500; }
+        .text-muted { color: #8b949e !important; }
+    </style>
+</head>
+<body class="py-4">
+    <div class="container" style="max-width: 600px;">
+        <div class="card card-main p-4 shadow-lg">
+            
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="d-flex align-items-center">
+                    <img src="{{ avatar }}" class="rounded-circle me-2" width="50" height="50" style="object-fit: cover;">
+                    <div>
+                        <h5 class="mb-0 fw-bold text-white">{{ nombre }}</h5>
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#modalPerfil" class="text-info text-decoration-none small">Editar Perfil ⚙️</a>
+                    </div>
+                </div>
+                <a href="/logout" class="btn btn-danger btn-sm">Cerrar Sesión 🚪</a>
+            </div>
+
+            <div class="row text-center mb-3">
+                <div class="col-6">
+                    <div class="p-2 rounded bg-dark border border-secondary">
+                        <small class="text-muted d-block">Estatus Sesión</small>
+                        <span class="text-success fw-bold">🟢 Activo</span>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="p-2 rounded bg-dark border border-secondary">
+                        <small class="text-muted d-block">Baches Hoy</small>
+                        <span class="text-warning fw-bold">{{ total_hoy }} Rep.</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-2">
+                <button type="button" class="btn btn-warning w-100 fw-bold text-dark shadow-sm py-2" data-bs-toggle="modal" data-bs-target="#modalPendientes">
+                    📂 Ver Trabajos Pendientes / En Proceso
+                </button>
+            </div>
+
+            <!-- CARPETA DESPLEGABLE CON LUPA DE BÚSQUEDA Y ALTURA CONTROLADA -->
+            <div class="mb-3">
+                <button class="btn btn-dark border-info text-info w-100 d-flex justify-content-between align-items-center py-2 shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#carpetaHistorial" aria-expanded="false" aria-controls="carpetaHistorial">
+                    <span>📁 Historial Completo de Mis Trabajos</span>
+                    <span class="badge bg-info text-dark">
+                        {{ historial | selectattr('cuadrilla', 'equalto', nombre) | list | length }} Reg.
+                    </span>
+                </button>
+                
+                <div class="collapse mt-2" id="carpetaHistorial">
+                    <div class="card bg-dark text-light border-secondary p-3 shadow">
+                        <h6 class="text-info mb-2 pb-1 border-bottom border-secondary">📋 Trabajos registrados por ti</h6>
+                        
+                        <!-- Lupa de Búsqueda -->
+                        <div class="input-group input-group-sm mb-3">
+                            <span class="input-group-text bg-dark border-secondary text-info">🔍</span>
+                            <input type="text" id="buscadorHistorial" class="form-control bg-dark text-white border-secondary" placeholder="Buscar por folio, calle o colonia..." onkeyup="filtrarHistorial()">
+                        </div>
+
+                        <!-- Contenedor con altura fija y scroll limpio -->
+                        <div id="contenedorTarjetas" style="max-height: 280px; overflow-y: auto; padding-right: 5px;">
+                            {% set mis_baches = historial | selectattr('cuadrilla', 'equalto', nombre) | list %}
+                            {% if mis_baches %}
+                                <div class="d-flex flex-column gap-2">
+                                    {% for item in mis_baches %}
+                                    <div class="p-3 rounded bg-secondary bg-opacity-25 border border-secondary item-trabajo" data-texto="{{ item.folio | lower }} {{ item.calle | lower }} {{ item.colonia | lower }}">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="badge bg-warning text-dark">Folio: #{{ item.folio }}</span>
+                                            <small class="text-muted">{{ item.fecha }}</small>
+                                        </div>
+                                        <p class="mb-1 small"><strong>Calle:</strong> {{ item.calle }}</p>
+                                        <p class="mb-1 small"><strong>Colonia / SM:</strong> {{ item.colonia }}</p>
+                                        <p class="mb-2 small">
+                                            <strong>Estatus:</strong> 
+                                            <span class="badge {% if item.estado_trabajo == 'Trabajo Concluido' %}bg-success{% else %}bg-warning text-dark{% endif %}">
+                                                {{ item.estado_trabajo }}
+                                            </span>
+                                        </p>
+                                        
+                                        <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top border-secondary">
+                                            {% if item.link_maps %}
+                                            <a href="{{ item.link_maps }}" target="_blank" class="btn btn-xs btn-outline-info" style="font-size: 0.75rem;">
+                                                📍 Ver Mapa
+                                            </a>
+                                            {% endif %}
+                                            
+                                            {% if item.imagen %}
+                                            <a href="{{ item.imagen }}" target="_blank" class="btn btn-xs btn-outline-light" style="font-size: 0.75rem;">
+                                                🖼️ Ver Evidencia (Foto)
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <div id="sinResultados" class="text-center text-muted small my-3" style="display: none;">
+                                    No se encontraron coincidencias.
+                                </div>
+                            {% else %}
+                                <p class="text-muted text-center small my-2">Aún no hay registros guardados.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if mensaje %}
+                <div class="alert alert-success py-2 text-center small" role="alert">
+                    {{ mensaje }}
+                </div>
+            {% endif %}
+
+            <form action="/guardar_bache" method="POST" enctype="multipart/form-data">
+                <h5 class="text-info mb-3">🛠️ Registro de Bacheo</h5>
+                
+                <div class="mb-3">
+                    <label class="form-label small">Número de Folio / Orden</label>
+                    <input type="text" name="folio" class="form-control bg-dark text-white border-secondary" placeholder="Ej. FOLIO-0192" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small">Calle o Avenida</label>
+                    <input type="text" name="calle" class="form-control bg-dark text-white border-secondary" placeholder="Ej. Av. Kabah" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small">Colonia / Supermanzana</label>
+                    <input type="text" name="colonia" class="form-control bg-dark text-white border-secondary" placeholder="Ej. Sm 50" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small text-warning fw-bold">Estatus del Trabajo:</label>
+                    <select name="estado_trabajo" class="form-select bg-dark text-white border-warning" required>
+                        <option value="En proceso de bacheo">⏳ En proceso de bacheo (Quedó pendiente)</option>
+                        <option value="Concluido">✅ Trabajo Concluido</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label small">Evidencia Fotográfica</label>
+                    <input type="file" name="foto" class="form-control bg-dark text-white border-secondary" accept="image/*">
+                </div>
+
+                <input type="hidden" name="lat" id="lat" value="21.1619">
+                <input type="hidden" name="lng" id="lng" value="-86.8515">
+
+                <div class="d-flex justify-content-between align-items-center mb-3 small">
+                    <span class="text-light">GPS Actual: <span id="gps-status" class="text-success fw-bold">Obteniendo...</span></span>
+                    <a href="#" id="ver-maps" target="_blank" class="text-decoration-none text-info">Ver Maps 🗺️</a>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 fw-bold py-2 shadow">Guardar / Actualizar Registro</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL PENDIENTES -->
+    <div class="modal fade" id="modalPendientes" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-white border-warning">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title">⏳ Folios Pendientes / En Proceso</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-light small">Selecciona un folio que quedó pendiente para cargarlo al formulario y actualizarlo:</p>
+                    <div class="list-group bg-dark">
+                        {% set found = false %}
+                        {% for b in historial %}
+                            {% if b.estado_trabajo == 'En proceso de bacheo' and b.cuadrilla == nombre %}
+                                {% set found = true %}
+                                <div class="list-group-item bg-secondary text-white mb-2 rounded border-0 p-3">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1 fw-bold">Folio: #{{ b.folio }}</h6>
+                                        <small class="text-warning">{{ b.fecha }}</small>
+                                    </div>
+                                    <p class="mb-1 small">📍 {{ b.calle }}, {{ b.colonia }}</p>
+                                    <button type="button" class="btn btn-sm btn-success mt-2 fw-bold" onclick="cargarFolioPendiente('{{ b.folio }}', '{{ b.calle }}', '{{ b.colonia }}')">
+                                        Retomar y Actualizar 🔄
+                                    </button>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                        {% if not found %}
+                            <p class="text-center text-muted my-3">No hay trabajos pendientes registrados.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PERFIL -->
+    <div class="modal fade" id="modalPerfil" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-white border-secondary">
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar Perfil de Cuadrilla</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="/actualizar_perfil" method="POST" enctype="multipart/form-data">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label small">Nombre de la Cuadrilla / Operador</label>
+                            <input type="text" name="nombre_operador" class="form-control bg-dark text-white border-secondary" value="{{ nombre }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small">Nueva Foto de Perfil</label>
+                            <input type="file" name="foto_perfil" class="form-control bg-dark text-white border-secondary" accept="image/*">
+                        </div>
+                    </div>
+                    <div class="modal-footer border-secondary">
+                        <button type="submit" class="btn btn-success btn-sm">Guardar Cambios</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Función para filtrar los trabajos en tiempo real con la lupa
+        function filtrarHistorial() {
+            let filtro = document.getElementById('buscadorHistorial').value.toLowerCase();
+            let tarjetas = document.querySelectorAll('.item-trabajo');
+            let visibles = 0;
+
+            tarjetas.forEach(tarjeta => {
+                let texto = tarjeta.getAttribute('data-texto');
+                if (texto.includes(filtro)) {
+                    tarjeta.style.display = "";
+                    visibles++;
+                } else {
+                    tarjeta.style.display = "none";
+                }
+            });
+
+            let mensajeSinResultados = document.getElementById('sinResultados');
+            if (mensajeSinResultados) {
+                mensajeSinResultados.style.display = (visibles === 0) ? "block" : "none";
+            }
+        }
+
+        function cargarFolioPendiente(folio, calle, colonia) {
+            document.querySelector('input[name="folio"]').value = folio;
+            document.querySelector('input[name="calle"]').value = calle;
+            document.querySelector('input[name="colonia"]').value = colonia;
+            document.querySelector('select[name="estado_trabajo"]').value = "Concluido";
+            var modalEl = document.getElementById('modalPendientes');
+            var modal = bootstrap.Modal.getInstance(modalEl);
+            modal.hide();
+        }
+
+        let currentLat = 21.1619;
+        let currentLng = -86.8515;
+
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(function(position) {
+                currentLat = position.coords.latitude;
+                currentLng = position.coords.longitude;
+                document.getElementById('lat').value = currentLat;
+                document.getElementById('lng').value = currentLng;
+                document.getElementById('gps-status').innerText = "Activo (Preciso)";
+                document.getElementById('ver-maps').href = `https://www.google.com/maps?q=${currentLat},${currentLng}`;
+            }, function(error) {
+                document.getElementById('gps-status').innerText = "Error / Predeterminado";
+            }, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
+        }
+
+        function enviarPosicionAlServidor() {
+            let formData = new URLSearchParams();
+            formData.append('lat', currentLat);
+            formData.append('lng', currentLng);
+            fetch('/actualizar_posicion', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: formData.toString()
+            }).catch(error => {});
+        }
+        setInterval(enviarPosicionAlServidor, 5000);
+    </script>
+</body>
+</html>

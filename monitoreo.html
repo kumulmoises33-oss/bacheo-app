@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Centro de Control - Monitoreo Avanzado</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: white; display: flex; height: 100vh; overflow: hidden; }
+        
+        #map-container { flex: 1; position: relative; height: 100vh; }
+        #map { height: 100%; width: 100%; }
+
+        /* Estilo base para los controles flotantes izquierdos */
+        .control-box {
+            position: absolute;
+            left: 20px;
+            width: 320px;
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(8px);
+            border: 1px solid #334155;
+            border-radius: 14px;
+            z-index: 1000;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        /* 1. BUSCADOR SUPERIOR INDEPENDIENTE (Arriba del todo a la izquierda) */
+        #cuadroBuscador {
+            top: 20px;
+        }
+
+        /* 2. CUADRILLAS (Se acomoda dinámicamente debajo del buscador) */
+        #cuadroCuadrillas {
+            top: 90px; 
+        }
+
+        /* 3. HISTÓRICO (Se acomoda dinámicamente debajo de cuadrillas) */
+        #cuadroHistorico {
+            top: 160px; 
+        }
+
+        /* Contenedor interno del buscador rápido */
+        .search-box-inner {
+            padding: 12px 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .search-box-inner input {
+            flex: 1;
+            background: #0f172a;
+            border: 1px solid #475569;
+            color: white;
+            padding: 8px 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            outline: none;
+        }
+        .search-box-inner input:focus {
+            border-color: #38bdf8;
+        }
+        .search-btn {
+            background: #0284c7;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .search-btn:hover { background: #0369a1; }
+
+        .control-box-header {
+            background: #0f172a;
+            padding: 12px 15px;
+            border-bottom: 1px solid #334155;
+            font-weight: bold;
+            color: #38bdf8;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+        .control-box-header:hover {
+            background: #1e293b;
+        }
+
+        .toggle-icon {
+            font-size: 12px;
+            background: #334155;
+            padding: 2px 6px;
+            border-radius: 6px;
+            color: #cbd5e1;
+            transition: transform 0.3s;
+        }
+
+        .control-box-body {
+            padding: 15px;
+            max-height: 220px;
+            overflow-y: auto;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+        }
+
+        .control-box.collapsed .control-box-body {
+            max-height: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+            overflow: hidden;
+        }
+        .control-box.collapsed .toggle-icon {
+            transform: rotate(-90deg);
+        }
+
+        .historico-body label {
+            font-size: 11px;
+            color: #94a3b8;
+            display: block;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        .filter-select {
+            width: 100%;
+            background: #0f172a;
+            color: white;
+            border: 1px solid #475569;
+            padding: 9px;
+            border-radius: 8px;
+            font-size: 13px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .cuadrilla-item {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: border-color 0.2s;
+        }
+        .cuadrilla-item:hover { border-color: #38bdf8; }
+        .cuadrilla-info h4 { margin: 0 0 4px 0; font-size: 14px; color: #f8fafc; }
+        .cuadrilla-info span { font-size: 11px; color: #4ade80; }
+        .btn-centrar { background: #0284c7; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+        .btn-centrar:hover { background: #0369a1; }
+        .sin-cuadrillas { font-size: 12px; color: #94a3b8; text-align: center; margin: 10px 0; }
+
+        .side-panel { width: 0; background: #1e293b; position: fixed; right: 0; top: 0; height: 100vh; z-index: 1000; box-shadow: -5px 0 25px rgba(0,0,0,0.6); transition: width 0.3s ease; overflow-y: auto; border-left: 1px solid #334155; box-sizing: border-box; }
+        .side-panel.active { width: 380px; padding: 25px; }
+        .side-panel h3 { color: #38bdf8; margin-top: 0; border-bottom: 1px solid #334155; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .close-btn { background: none; border: none; color: #94a3b8; font-size: 20px; cursor: pointer; }
+        .close-btn:hover { color: white; }
+
+        .detail-group { margin-bottom: 15px; background: #0f172a; padding: 12px; border-radius: 10px; border: 1px solid #334155; }
+        .detail-group label { font-size: 11px; color: #94a3b8; display: block; margin-bottom: 3px; text-transform: uppercase; font-weight: bold; }
+        .detail-group span { font-size: 15px; color: #f8fafc; font-weight: 500; }
+        .detail-img { width: 100%; height: 180px; object-fit: cover; border-radius: 8px; margin-top: 5px; border: 1px solid #475569; }
+
+        .leaflet-popup-content-wrapper { background: #1e293b; color: #f8fafc; border-radius: 14px; padding: 0; overflow: hidden; border: 1px solid #475569; box-shadow: 0 10px 25px rgba(0,0,0,0.7); }
+        .leaflet-popup-content { margin: 12px; line-height: 1.4; width: 220px !important; }
+        
+        .popup-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 5px; margin-bottom: 6px; }
+        .popup-title { color: #38bdf8; font-size: 14px; font-weight: bold; }
+        
+        .btn-expand { display: block; width: 100%; background: #0284c7; color: white; border: none; padding: 6px; border-radius: 6px; font-weight: bold; font-size: 11px; cursor: pointer; text-align: center; text-decoration: none; margin-top: 6px; }
+        .btn-expand:hover { background: #0369a1; }
+        
+        .btn-car-live { display: block; width: 100%; background: #16a34a; color: white; border: none; padding: 6px; border-radius: 6px; font-weight: bold; font-size: 11px; cursor: pointer; text-align: center; text-decoration: none; margin-top: 6px; }
+        .btn-car-live:hover { background: #15803d; }
+
+        /* Contenedor de botones superiores derechos (Términos + Logout) */
+        .top-admin-actions {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            z-index: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .btn-terminos-nav {
+            background: rgba(56, 189, 248, 0.15);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: bold;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        .btn-terminos-nav:hover {
+            background: rgba(56, 189, 248, 0.25);
+        }
+        .btn-logout { 
+            background: rgba(239, 68, 68, 0.15); 
+            color: #ef4444; 
+            border: 1px solid rgba(239, 68, 68, 0.3); 
+            padding: 6px 12px; 
+            border-radius: 8px; 
+            font-size: 12px; 
+            font-weight: bold; 
+            text-decoration: none; 
+            transition: background 0.2s;
+        }
+        .btn-logout:hover {
+            background: rgba(239, 68, 68, 0.25);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Botones Superiores Derecha: Enlace a Términos y Cerrar Sesión -->
+    <div class="top-admin-actions">
+        <a href="/terminos" target="_blank" class="btn-terminos-nav">📋 Términos de Uso</a>
+        <a href="/logout_admin" class="btn-logout">Cerrar Sesión 🚪</a>
+    </div>
+
+    <!-- 1. BUSCADOR RÁPIDO POR FOLIO (Independiente arriba a la izquierda) -->
+    <div class="control-box" id="cuadroBuscador">
+        <div class="search-box-inner">
+            <input type="text" id="inputBuscarFolio" placeholder="Buscar folio rápido..." onkeydown="if(event.key === 'Enter') buscarFolio()">
+            <button class="search-btn" onclick="buscarFolio()" title="Buscar Folio">🔍</button>
+        </div>
+    </div>
+
+    <!-- 2. CUADRO: CUADRILLAS ACTIVAS -->
+    <div class="control-box" id="cuadroCuadrillas">
+        <div class="control-box-header" onclick="toggleMenu('cuadroCuadrillas')">
+            <span>👷‍♂️ Cuadrillas <span id="contador-cuadrillas" style="font-size: 11px; background: #0284c7; padding: 2px 6px; border-radius: 10px; margin-left: 5px;">0</span></span>
+            <span class="toggle-icon">▼</span>
+        </div>
+        <div class="control-box-body" id="listaCuadrillasBox">
+            <div class="sin-cuadrillas">Esperando conexión...</div>
+        </div>
+    </div>
+
+    <!-- 3. CUADRO: HISTÓRICO DE TRABAJOS Y MESES -->
+    <div class="control-box" id="cuadroHistorico">
+        <div class="control-box-header" onclick="toggleMenu('cuadroHistorico')">
+            <span>📅 Histórico de Trabajos</span>
+            <span class="toggle-icon">▼</span>
+        </div>
+        <div class="control-box-body historico-body">
+            <label for="filtroMes">Seleccionar Periodo / Mes:</label>
+            <select id="filtroMes" class="filter-select" onchange="aplicarFiltroMes()">
+                <option value="todos">🌟 Todos los trabajos (Histórico)</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="map-container">
+        <div id="map"></div>
+    </div>
+
+    <div class="side-panel" id="sidePanel">
+        <h3>
+            <span>📋 Datos del Caso</span>
+            <button class="close-btn" onclick="cerrarPanel()">&times;</button>
+        </h3>
+        <div id="panelContent"></div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        var map = L.map('map').setView([21.1619, -86.8515], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap - Dirección de Bacheo'
+        }).addTo(map);
+
+        var iconoCarro = L.icon({
+            iconUrl: 'https://cdn-icons-png.flaticon.com/512/741/741407.png',
+            iconSize: [32, 32],
+            iconAnchor: [16, 16],
+            popupAnchor: [0, -16]
+        });
+
+        var iconoBacheVerde = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+
+        var iconoBacheRojo = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+
+        var cuadrillasMarkers = {};
+        var bachesMarkersList = {};
+        var bachesLayer = L.layerGroup().addTo(map);
+        var cacheDatosGlobales = { cuadrillas: {}, baches: [] };
+
+        function toggleMenu(idCuadro) {
+            var cuadro = document.getElementById(idCuadro);
+            cuadro.classList.toggle('collapsed');
+            reorganizarCuadros();
+        }
+
+        function reorganizarCuadros() {
+            var buscador = document.getElementById('cuadroBuscador');
+            var c1 = document.getElementById('cuadroCuadrillas');
+            var c2 = document.getElementById('cuadroHistorico');
+            
+            let alturaBuscador = buscador.offsetHeight; // aprox 55px
+            
+            // Posicionar Cuadrillas debajo del buscador + espacio
+            let topC1 = 20 + alturaBuscador + 10;
+            c1.style.top = topC1 + 'px';
+
+            // Posicionar Histórico debajo de Cuadrillas (colapsado o abierto)
+            let alturaC1 = c1.classList.contains('collapsed') ? c1.querySelector('.control-box-header').offsetHeight : c1.offsetHeight;
+            let topC2 = topC1 + alturaC1 + 10;
+            c2.style.top = topC2 + 'px';
+        }
+
+        function centrarCuadrilla(lat, lng, nombre) {
+            map.setView([lat, lng], 16);
+            if (cuadrillasMarkers[nombre]) {
+                cuadrillasMarkers[nombre].openPopup();
+            }
+        }
+
+        function buscarFolio() {
+            let query = document.getElementById('inputBuscarFolio').value.trim().toLowerCase();
+            if (!query) return;
+
+            let bacheEncontrado = cacheDatosGlobales.baches.find(b => (b.folio || '').toLowerCase() === query);
+
+            if (bacheEncontrado) {
+                document.getElementById('filtroMes').value = 'todos';
+                aplicarFiltroMes();
+
+                map.setView([bacheEncontrado.lat, bacheEncontrado.lng], 17);
+                
+                let markerObj = bachesMarkersList[bacheEncontrado.folio];
+                if (markerObj) {
+                    markerObj.openPopup();
+                }
+            } else {
+                alert("No se encontró ningún bache con el folio: " + query);
+            }
+        }
+
+        function actualizarMonitoreo() {
+            fetch('/api/estado_en_vivo')
+                .then(response => response.json())
+                .then(data => {
+                    cacheDatosGlobales = data;
+                    poblarMenuMeses(data.baches);
+                    renderizarInterfaz(cacheDatosGlobales);
+                })
+                .catch(error => {
+                    cacheDatosGlobales = {
+                        cuadrillas: {
+                            "JUAN CARLOS": { lat: 21.1619, lng: -86.8515, estado: "En ruta", operador: "Juan Carlos" }
+                        },
+                        baches: [
+                            {
+                                folio: "343434",
+                                lat: 21.1630,
+                                lng: -86.8520,
+                                calle: "LOPEZ",
+                                colonia: "JUAN PBLO",
+                                cuadrilla: "JUAN CARLOS",
+                                estado_trabajo: "Concluido",
+                                detalle_estatus: "Trabajo terminado con éxito",
+                                fecha: "27/09/2026",
+                                imagen: "https://images.unsplash.com/photo-1515260268569-9271009adfdb?w=500",
+                                link_maps: "https://www.google.com/maps?q=21.1630,-86.8520"
+                            }
+                        ]
+                    };
+                    poblarMenuMeses(cacheDatosGlobales.baches);
+                    renderizarInterfaz(cacheDatosGlobales);
+                });
+        }
+
+        function poblarMenuMeses(baches) {
+            let select = document.getElementById('filtroMes');
+            let valorActual = select.value;
+            
+            let mesesDisponibles = new Set();
+            baches.forEach(bache => {
+                let partes = (bache.fecha || '').split('/');
+                if (partes.length === 3) {
+                    let anioMes = `${partes[2]}-${partes[1]}`;
+                    mesesDisponibles.add(anioMes);
+                }
+            });
+
+            let mesesOrdenados = Array.from(mesesDisponibles).sort().reverse();
+            let htmlOpciones = `<option value="todos">🌟 Todos los trabajos (Histórico)</option>`;
+            
+            const nombresMeses = {
+                "01": "Enero", "02": "Febrero", "03": "Marzo", "04": "Abril",
+                "05": "Mayo", "06": "Junio", "07": "Julio", "08": "Agosto",
+                "09": "Septiembre", "10": "Octubre", "11": "Noviembre", "12": "Diciembre"
+            };
+
+            mesesOrdenados.forEach(ym => {
+                let [anio, mesNum] = ym.split('-');
+                let nombreMes = nombresMeses[mesNum] || mesNum;
+                htmlOpciones += `<option value="${ym}">${nombreMes} ${anio}</option>`;
+            });
+
+            select.innerHTML = htmlOpciones;
+            if (mesesOrdenados.includes(valorActual) || valorActual === 'todos') {
+                select.value = valorActual;
+            }
+        }
+
+        function renderizarInterfaz(data) {
+            var cuadrillas = data.cuadrillas;
+            var listaHtml = '';
+            var totalCuadrillas = 0;
+            
+            for (var nombre in cuadrillas) {
+                totalCuadrillas++;
+                var pos = cuadrillas[nombre];
+                var linkUbicacionEnVivo = `https://www.google.com/maps?q=${pos.lat},${pos.lng}`;
+
+                listaHtml += `
+                    <div class="cuadrilla-item">
+                        <div class="cuadrilla-info">
+                            <h4>🚗 ${nombre}</h4>
+                            <span>🟢 ${pos.estado}</span>
+                        </div>
+                        <button class="btn-centrar" onclick="centrarCuadrilla(${pos.lat}, ${pos.lng}, '${nombre}')">
+                            Ver 📍
+                        </button>
+                    </div>
+                `;
+
+                var popupCarroContent = `
+                    <div>
+                        <div class="popup-header">
+                            <span class="popup-title">🚗 ${nombre}</span>
+                        </div>
+                        <div style="font-size: 11px; color: #94a3b8; margin-bottom: 6px;">
+                            <b>Operador:</b> ${pos.operador}<br>
+                            <b>Estatus GPS:</b> <span style="color: #4ade80;">${pos.estado}</span>
+                        </div>
+                        <a href="${linkUbicacionEnVivo}" target="_blank" class="btn-car-live">
+                            Ver Ubicación Exacta en Vivo 🌍
+                        </a>
+                    </div>
+                `;
+
+                if (cuadrillasMarkers[nombre]) {
+                    cuadrillasMarkers[nombre].setLatLng([pos.lat, pos.lng]);
+                    cuadrillasMarkers[nombre].getPopup().setContent(popupCarroContent);
+                } else {
+                    var markerCar = L.marker([pos.lat, pos.lng], { icon: iconoCarro }).addTo(map);
+                    markerCar.bindPopup(popupCarroContent);
+                    cuadrillasMarkers[nombre] = markerCar;
+                }
+            }
+
+            if (totalCuadrillas === 0) {
+                listaHtml = '<div class="sin-cuadrillas">No hay cuadrillas activas.</div>';
+            }
+
+            document.getElementById('contador-cuadrillas').innerText = totalCuadrillas;
+            document.getElementById('listaCuadrillasBox').innerHTML = listaHtml;
+            reorganizarCuadros();
+
+            dibujarBachesFiltrados(data.baches);
+        }
+
+        function aplicarFiltroMes() {
+            renderizarInterfaz(cacheDatosGlobales);
+        }
+
+        function dibujarBachesFiltrados(baches) {
+            bachesLayer.clearLayers();
+            bachesMarkersList = {};
+            var mesSeleccionado = document.getElementById('filtroMes').value;
+
+            baches.forEach(bache => {
+                let cumpleFiltro = false;
+                
+                if (mesSeleccionado === 'todos') {
+                    cumpleFiltro = true;
+                } else {
+                    let partesFecha = (bache.fecha || '').split('/');
+                    if (partesFecha.length === 3) {
+                        let formatoAnioMes = `${partesFecha[2]}-${partesFecha[1]}`;
+                        if (formatoAnioMes === mesSeleccionado) {
+                            cumpleFiltro = true;
+                        }
+                    }
+                }
+
+                if (cumpleFiltro) {
+                    let estatus = (bache.estado_trabajo || '').trim().toLowerCase();
+                    let esConcluido = estatus.includes('concluido') || estatus.includes('terminado') || estatus.includes('finalizado');
+                    
+                    let iconoPin = esConcluido ? iconoBacheVerde : iconoBacheRojo;
+                    let colorTextoEstatus = esConcluido ? '#4ade80' : '#ef4444';
+
+                    var marker = L.marker([bache.lat, bache.lng], { icon: iconoPin }).addTo(bachesLayer);
+                    bachesMarkersList[bache.folio] = marker;
+                    
+                    var popupBacheContent = `
+                        <div>
+                            <div class="popup-header">
+                                <span class="popup-title">📋 Folio: ${bache.folio}</span>
+                                <span style="font-size: 10px; color: #94a3b8;">${bache.fecha}</span>
+                            </div>
+                            <div style="font-size: 11px; color: #cbd5e1; margin-bottom: 4px;">
+                                <b>Calle:</b> ${bache.calle}
+                            </div>
+                            <div style="font-size: 11px; color: #38bdf8; margin-bottom: 4px;">
+                                👷 <b>Cuadrilla:</b> ${bache.cuadrilla || 'No asignada'}
+                            </div>
+                            <div style="font-size: 11px; color: ${colorTextoEstatus}; margin-bottom: 6px; font-weight: bold;">
+                                📌 <b>Estado:</b> ${bache.estado_trabajo || 'Pendiente'}
+                            </div>
+                            <button class="btn-expand" onclick='abrirPanel(${JSON.stringify(bache)})'>
+                                Ver Foto y Detalles ➔
+                            </button>
+                        </div>
+                    `;
+                    marker.bindPopup(popupBacheContent);
+                }
+            });
+        }
+
+        function abrirPanel(bache) {
+            let estatus = (bache.estado_trabajo || '').trim().toLowerCase();
+            let esConcluido = estatus.includes('concluido') || estatus.includes('terminado') || estatus.includes('finalizado');
+            
+            var colorEstado = esConcluido ? '#4ade80' : '#ef4444';
+            var iconoEstatusHtml = esConcluido ? '🟢' : '📌';
+            
+            var contenidoHtml = `
+                <div class="detail-group">
+                    <label>Número de Folio</label>
+                    <span style="color: #38bdf8; font-size: 18px; font-weight: bold;">${bache.folio}</span>
+                </div>
+                <div class="detail-group">
+                    <label>Cuadrilla</label>
+                    <span style="color: #38bdf8; font-weight: bold;">👷 ${bache.cuadrilla || 'No especificada'}</span>
+                </div>
+                <div class="detail-group">
+                    <label>Estatus del Trabajo</label>
+                    <span style="color: ${colorEstado}; font-weight: bold;">${iconoEstatusHtml} ${bache.estado_trabajo || 'Pendiente'}</span>
+                </div>
+                <div class="detail-group">
+                    <label>Motivo / Detalle</label>
+                    <span style="color: #f8fafc; font-style: italic;">💬 "${bache.detalle_estatus || 'Sin observaciones'}"</span>
+                </div>
+                <div class="detail-group">
+                    <label>Fecha de Registro</label>
+                    <span>${bache.fecha}</span>
+                </div>
+                <div class="detail-group">
+                    <label>Ubicación</label>
+                    <span><b>Calle:</b> ${bache.calle}<br><b>Colonia:</b> ${bache.colonia}</span>
+                </div>
+                <div class="detail-group">
+                    <label>Evidencia Fotográfica</label>
+                    <img src="${bache.imagen}" class="detail-img" alt="Foto Evidencia">
+                </div>
+                <div class="detail-group" style="text-align: center;">
+                    <a href="${bache.link_maps}" target="_blank" style="display: block; background: #1a73e8; color: white; padding: 12px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+                        Abrir Navegación en Google Maps 🌍
+                    </a>
+                </div>
+            `;
+            
+            document.getElementById('panelContent').innerHTML = contenidoHtml;
+            document.getElementById('sidePanel').classList.add('active');
+            map.closePopup();
+        }
+
+        function cerrarPanel() {
+            document.getElementById('sidePanel').classList.remove('active');
+        }
+
+        setInterval(actualizarMonitoreo, 3000);
+        actualizarMonitoreo();
+    </script>
+</body>
+</html>

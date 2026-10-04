@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Términos y Condiciones - Sistema de Bacheo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white rounded-xl shadow-lg max-w-2xl w-full p-8 space-y-6">
+        <!-- Encabezado -->
+        <div class="border-b pb-4">
+            <h1 class="text-2xl font-bold text-gray-800">📋 Términos y Condiciones de Uso</h1>
+            <p class="text-sm text-gray-500 mt-1">Dirección de Bacheo y Pipas — Sistema Operativo de Campo</p>
+        </div>
+
+        <!-- Contenido Legal -->
+        <div class="space-y-4 text-gray-600 text-sm max-h-96 overflow-y-auto pr-2">
+            <p>
+                Bienvenido al sistema oficial de control y monitoreo de cuadrillas. El uso de esta aplicación implica la aceptación estricta de los presentes términos de uso y políticas operativas:
+            </p>
+            
+            <div class="space-y-2">
+                <h3 class="font-semibold text-gray-800">1. Uso de Geolocalización (GPS)</h3>
+                <p>La aplicación requiere y recopila acceso a la ubicación en tiempo real del dispositivo móvil mientras el operador se encuentre activo en ruta. Esto con el único fin de permitir el monitoreo operativo, calcular distancias y optimizar la asignación de folios por parte del centro de mando.</p>
+            </div>
+
+            <div class="space-y-2">
+                <h3 class="font-semibold text-gray-800">2. Registro de Evidencia Fotográfica</h3>
+                <p>Las fotografías de perfil del operador, así como las imágenes de los baches y trabajos registrados en campo, son propiedad institucional. Se almacenan de forma permanente para el control de folios, validación de avances y auditorías de servicio.</p>
+            </div>
+
+            <div class="space-y-2">
+                <h3 class="font-semibold text-gray-800">3. Confidencialidad y Seguridad de Cuenta</h3>
+                <p>El usuario (jefe de cuadrilla) es el único responsable del resguardo de su cuenta y contraseña de acceso. Queda estrictamente prohibido compartir credenciales o permitir el uso de la sesión a personal no autorizado.</p>
+            </div>
+
+            <div class="space-y-2">
+                <h3 class="font-semibold text-gray-800">4. Protección de Datos Institucionales</h3>
+                <p>Toda la información operativa, bitácoras y registros generados en esta plataforma están protegidos conforme a las normativas de transparencia y manejo de datos aplicables en la administración pública.</p>
+            </div>
+        </div>
+
+        <!-- Botón de acción con el formulario POST para la cookie -->
+        <div class="border-t pt-4 flex justify-end">
+            <form action="/aceptar_terminos" method="POST">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2.5 rounded-lg transition-colors shadow cursor-pointer">
+                    Aceptar y Continuar
+                </button>
+            </form>
+        </div>
+    </div>
+
+</body>
+</html>
