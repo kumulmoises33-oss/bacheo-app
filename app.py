@@ -4,7 +4,7 @@ import sqlite3
 from werkzeug.security import check_password_hash, generate_password_hash
 from datetime import datetime
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='.')
 app.secret_key = 'clave_secreta_patron_bacheo_2026'
 
 CARPETA_FOTOS = 'static/uploads'
